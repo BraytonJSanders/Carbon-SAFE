@@ -31,6 +31,8 @@ def set_values(Power_Plants_Data, MainOptions, model_title):
 			if st.button("*Reset to default values?"):
 				Power_Plants_Data.loc[MainOptions.scenario] = Power_Plants_Data.loc['Dry Fork Station']
 				st.success("Values reset.")
+	st.text('Main Selection Options in Left Sidebar')
+	csf.main_body_divider()
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
@@ -46,7 +48,7 @@ class ScenarioData:
 		self.storage_pipe = Power_Plants_Data.loc[MainOptions.scenario]['StoragePipe']
 		self.sales_pipe = Power_Plants_Data.loc[MainOptions.scenario]['Sales Pipe']
 		self.op_hrs_per_yr = self.efficiency * ModelConstants.hours_per_year
-		csf.main_body_divider()
+		
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
