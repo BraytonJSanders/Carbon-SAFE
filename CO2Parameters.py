@@ -7,7 +7,7 @@ from datetime import datetime
 import CarbonSafeFunctions as csf
 from SideBar import ModelConstants, SelectBoxOptions
 
-
+@st.cache
 def complex_45Q(self, df, TaxCredits):
 
 	CO2_year_one = TaxCredits.CO2_one
@@ -43,7 +43,7 @@ def complex_45Q(self, df, TaxCredits):
 			df[1,i] = 0
 	return df
 
-
+@st.cache
 def simple_45Q(self, df, TaxCredits):
 
 	CO2_year_one = TaxCredits.CO2_one
@@ -71,7 +71,7 @@ def CO2SalesShares(CO2_share, CO2_share_constant, length):
 		CO2_path[:len(tend)] = tend
 	return CO2_path
 
-class CO2Parameters:
+class CO2Parameter:
 	def __init__(self, MainOptions, ScenarioData, CaptureFacilitiesFinancials, CaptureFacilities, GlobalParameters, RevenueReserves):
 		self.MainOptions = MainOptions
 		self.ScenarioData = ScenarioData

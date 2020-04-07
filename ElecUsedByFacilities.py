@@ -5,18 +5,18 @@ import math
 import CarbonSafeFunctions as csf
 from SideBar import ModelConstants, SelectBoxOptions
 
-from CaptureFacilitiesFinancials import CaptureFacilitiesFinancials
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
 
+@st.cache
 def FinishFacilities(self, ElecUsage, Facility):
 	self.facilities[Facility].loc['Net Electricity Usage (kWhs)', 1:] =[ElecUsage.loc['….if (Purchased), Purchase Share (%Demand)', i] * self.facilities[Facility].loc['Total Electricity Usage (kWhs)', i] for i in range(1, self.MainOptions.total_life)]
 	self.facilities[Facility].loc['Purchased Electricity', 1:] = [self.facilities[Facility].loc['Net Electricity Usage (kWhs)', i] * self.FuelPrices.elec_purchase[i] for i in range(1, self.MainOptions.total_life)]
 	self.facilities[Facility].loc['Subtotal O&M', 1:] = [self.facilities[Facility].loc['Subtotal O&M', i] + self.facilities[Facility].loc['Purchased Electricity', i] for i in range(1, self.MainOptions.total_life)]
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
 
-
-
-
-
-class ElecUsedByFacilities:
+class ElecUsedByFacility:
 	def __init__(self, MainOptions, facilities_dictionary, FuelPrices):
 		self.MainOptions = MainOptions
 		self.facilities = facilities_dictionary
@@ -40,7 +40,8 @@ class ElecUsedByFacilities:
 										'CO2 Booster Stations', 'Total CoGen System Output (kWhs)', 'Total CCS System Electricity (kWhs)',
 										'Net Power Sold (Purchased)', '….if (Purchased), Purchase Share (%Demand)'])
 		return df
-
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
 
 	@st.cache(suppress_st_warning=True)
 	def FinishFacilitiesElec(self, ElecUsage):

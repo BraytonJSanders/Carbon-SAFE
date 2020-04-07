@@ -7,7 +7,7 @@ from datetime import datetime
 
 import CarbonSafeFunctions as csf
 from SideBar import ModelConstants, SelectBoxOptions
-from CaptureFacilitiesFinancials import CaptureFacilitiesFinancials
+from CaptureFacilitiesFinancials import CaptureFacilitiesFinancial
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -92,9 +92,9 @@ def capital_costs_pressure_boosting_pump(CaptureFacilities, PipelineSystems):
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-class PipelineSystemsFinancials(CaptureFacilitiesFinancials):
+class PipelineSystemsFinancial(CaptureFacilitiesFinancial):
 	def __init__(self, PipelineSystems, *args, **kwargs):
-		super(PipelineSystemsFinancials, self).__init__(*args, **kwargs)
+		super(PipelineSystemsFinancial, self).__init__(*args, **kwargs)
 		self.PipelineSystems = PipelineSystems
 		self.pipeline_cost_data = pipeline_cost_estimate(self.PipelineSystems, self.FuelPrices.fuel_pricing_df, self.ScenarioData)
 

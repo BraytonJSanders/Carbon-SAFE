@@ -6,8 +6,10 @@ from math import ceil
 import CarbonSafeFunctions as csf
 from SideBar import ModelConstants, SelectBoxOptions
 
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
 
-class CapitalCosts:
+class CapitalCost:
 	def __init__(self, dictionary, MainOptions, TimeValueMoney, MonitorSwitchesData, InsurancePiscLtl, CaptureFacilitiesFinancials):
 		self.dictionary = dictionary
 		self.MainOptions = MainOptions

@@ -23,7 +23,7 @@ def get_elec_rate(type_elec, fuel_data):
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-class CaptureFacilitiesFinancials:
+class CaptureFacilitiesFinancial:
 	def __init__(self, MainOptions, ScenarioData, FuelPrices, TimeValueMoney, MonitorSwitchesData,
 								GlobalParameters, CapitalStructure, RevenueReserves, CaptureFacilities, TaxCredits):
 		self.length = MainOptions.total_life
@@ -79,7 +79,7 @@ class CaptureFacilitiesFinancials:
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-	@st.cache(suppress_st_warning=True)
+	@st.cache
 	def CoGenFacility(self):
 		df = csf.create_zeros_array(self.length, rows = 10)
 
@@ -112,7 +112,7 @@ class CaptureFacilitiesFinancials:
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-	@st.cache(suppress_st_warning=True)
+	@st.cache
 	def SteamPlantOnly(self):
 		df = csf.create_zeros_array(self.length, rows = 10)
 
@@ -229,7 +229,7 @@ class CaptureFacilitiesFinancials:
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 	
-	@st.cache(suppress_st_warning=True)
+	@st.cache
 	def FlueGasTieIn(self):
 		df = csf.create_zeros_array(self.length, rows = 7)
 

@@ -6,12 +6,12 @@ import CarbonSafeFunctions as csf
 
 from SideBar import ModelConstants, SelectBoxOptions
 
-from CaptureFacilitiesFinancials import CaptureFacilitiesFinancials
+from CaptureFacilitiesFinancials import CaptureFacilitiesFinancial
 
 
-class StorageSiteFinancials(CaptureFacilitiesFinancials):
+class StorageSiteFinancial(CaptureFacilitiesFinancial):
 	def __init__(self, StorageSite, StorageWells, *args, **kwargs):
-		super(StorageSiteFinancials, self).__init__(*args, **kwargs)
+		super(StorageSiteFinancial, self).__init__(*args, **kwargs)
 		self.StorageSite = StorageSite
 		self.StorageWells = StorageWells
 # -------------------------------------------------------------------------------------------------------------------- #

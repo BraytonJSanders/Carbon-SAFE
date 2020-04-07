@@ -22,20 +22,87 @@ from CaptureFacilitiesParameters import CaptureFacilities
 from StorageSiteParameters import StorageSite
 from StorageWellsParameters import StorageWells
 # -------------------------------------------------------------------------------------------------------------------- #
-from CO2Parameters import CO2Parameters
-from CaptureFacilitiesFinancials import CaptureFacilitiesFinancials
-from PipelineSystemsFinancials import PipelineSystemsFinancials
-from StorageSiteFinancials import StorageSiteFinancials
-from ProjectFinancials import CapitalCosts
-from ElecUsedByFacilities import ElecUsedByFacilities
+from CO2Parameters import CO2Parameter
+from CaptureFacilitiesFinancials import CaptureFacilitiesFinancial
+from PipelineSystemsFinancials import PipelineSystemsFinancial
+from StorageSiteFinancials import StorageSiteFinancial
+from ProjectFinancials import CapitalCost
+from ElecUsedByFacilities import ElecUsedByFacility
 from TechnoEconSummary import TechnoEconSummary
 import DisplayResults
+
+# streamlit run app.py
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-# from test import TestClass
+@st.cache
+def main_run_model(model_title, reset_message, MainOptions, ScenarioData, FuelData, FuelPrices, TimeValueMoney, MonitorSwitchesData, GlobalParameters, CapitalStructure, RevenueReserves,
+					InsurancePiscLtl, CaptureFacilities, PipelineSystems, StorageSite, StorageWells):
 
-# streamlit run CarbonSAFE_test.py
+	CaptureFacilitiesFinancials = CaptureFacilitiesFinancial(MainOptions, ScenarioData,
+															FuelPrices, TimeValueMoney, MonitorSwitchesData,
+															GlobalParameters, CapitalStructure, RevenueReserves,
+															CaptureFacilities, TaxCredits)
+	CO2Parameters = CO2Parameter(MainOptions, ScenarioData, CaptureFacilitiesFinancials, CaptureFacilities, GlobalParameters, RevenueReserves)
 
+
+	PipelineSystemsFinancials = PipelineSystemsFinancial(PipelineSystems, MainOptions, ScenarioData,
+															FuelPrices, TimeValueMoney, MonitorSwitchesData,
+															GlobalParameters, CapitalStructure, RevenueReserves,
+															CaptureFacilities, TaxCredits)
+	StorageSiteFinancials = StorageSiteFinancial(StorageSite, StorageWells, MainOptions, ScenarioData,
+													FuelPrices, TimeValueMoney, MonitorSwitchesData,
+													GlobalParameters, CapitalStructure, RevenueReserves,
+													CaptureFacilities, TaxCredits)
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
+
+	financial_dfs = {'AmineCaptureFacility': CaptureFacilitiesFinancials.AmineCaptureFacility(),
+					'CoGenFacility':CaptureFacilitiesFinancials.CoGenFacility(),
+					'SteamPlantOnly':CaptureFacilitiesFinancials.SteamPlantOnly(),
+					'CoolingTower':CaptureFacilitiesFinancials.CoolingTower(),
+					'WaterTreatmentDemineralization':CaptureFacilitiesFinancials.WaterTreatmentDemineralization(),
+					'CompressionDehydration':CaptureFacilitiesFinancials.CompressionDehydration(),
+					'FlueGasTieIn':CaptureFacilitiesFinancials.FlueGasTieIn(),
+					'StoragePipeline': PipelineSystemsFinancials.StoragePipeline(),
+					'EorSalesPipeline': PipelineSystemsFinancials.EorSalesPipeline(),
+					'CO2PipelineBoostersGaugesMeters': PipelineSystemsFinancials.CO2PipelineBoostersGaugesMeters(),
+					'PreInjectSite': StorageSiteFinancials.PreInjectSite(),
+					'StorageOperationMonitoring': StorageSiteFinancials.StorageOperationMonitoring(StorageSiteFinancials.PreInjectSite().iloc[0 ,0], CO2Parameters.SourcePlantOperations()),
+					'CO2 Post-Injection Close Monitoring': StorageSiteFinancials.PostClosure()}
+	CapitalCosts = CapitalCost(financial_dfs, MainOptions, TimeValueMoney, MonitorSwitchesData, InsurancePiscLtl, CaptureFacilitiesFinancials)
+	ElecUsedByFacilities = ElecUsedByFacility(MainOptions, financial_dfs, FuelPrices)
+
+	CO2_dfs = {'CO2 Source Plant Operating Results': CO2Parameters.SourcePlantOperations(),
+				'CO2 Sales & Storage Volumes': CO2Parameters.CO2SaleAndStorage(CO2Parameters.SourcePlantOperations()),
+				'CO2 Tax Credits': CO2Parameters.CO2TaxCredits(TaxCredits),
+				'CO2 Pricing Paths': FuelPrices.cal_CO2_price_and_green(RevenueReserves, MainOptions, TimeValueMoney),
+				'CO2 Permits or Emission Credits': CO2Parameters.CO2PermitsOrEmissionCredits(),
+				'Electricity Used by Capture Facilities': ElecUsedByFacilities.CalcElecUsage()}
+	ElecUsedByFacilities.FinishFacilitiesElec(CO2_dfs['Electricity Used by Capture Facilities'])
+
+	project_financial_df = {'Total Facilities CAPEX': CapitalCosts.TotalCAPEX_ITC()['Facilities CAPEX'],
+							'Total ITC': CapitalCosts.TotalCAPEX_ITC()['Facilities ITC'],
+							'Industrial Insurance': CapitalCosts.Insurance(CapitalCosts.TotalCAPEX_ITC()['Facilities CAPEX']),
+							'Trust Funds': CapitalCosts.TrustFunds(financial_dfs['CO2 Post-Injection Close Monitoring'], CO2_dfs['CO2 Source Plant Operating Results'], CaptureFacilities),
+							'Techno Economic Financial Summary': TechnoEconSummary(MainOptions, CO2_dfs['CO2 Source Plant Operating Results'], ScenarioData, CO2_dfs['Electricity Used by Capture Facilities'], CO2_dfs['CO2 Sales & Storage Volumes']).df,
+							}
+	project_financial_df['Revenues'] = CapitalCosts.calc_revenues(project_financial_df['Techno Economic Financial Summary'], CO2_dfs, FuelPrices)
+	project_financial_df['Total Project CAPEX'] = CapitalCosts.project_CAPEX(project_financial_df['Total Facilities CAPEX'], project_financial_df['Industrial Insurance'], GlobalParameters, RevenueReserves, CapitalStructure)
+	project_financial_df['Operating Costs'] = CapitalCosts.calc_OPCosts(financial_dfs, project_financial_df)
+	project_financial_df['Debt Schedule'] = CapitalCosts.debt_schdule(financial_dfs, project_financial_df, CapitalStructure)
+	project_financial_df['Taxes'] = CapitalCosts.calc_taxes(financial_dfs, project_financial_df, CapitalStructure)
+	project_financial_df['Debt Service & Operating Reserve Account'] = CapitalCosts.debt_service(financial_dfs, project_financial_df, RevenueReserves, CapitalStructure)[0]
+	project_financial_df['Debt Coverage'] = CapitalCosts.debt_service(financial_dfs, project_financial_df, RevenueReserves, CapitalStructure)[1]
+	project_financial_df['Operating Income'] = CapitalCosts.calc_OPIncome(project_financial_df, CapitalStructure)
+	project_financial_df['Equity Sizing'] = CapitalCosts.equity_sizing(project_financial_df, TimeValueMoney)
+	project_financial_df['Total Project CAPEX'] = CapitalCosts.finish_CAPEX(project_financial_df['Total Project CAPEX'], project_financial_df)
+
+	return [financial_dfs, project_financial_df]
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
@@ -79,68 +146,13 @@ pass_checkbox = False
 if sum(in_options) == 0:
 	csf.section_header('*Check Box to Run Model*', line_above = False)
 	if st.checkbox('Run Model')| pass_checkbox:
-
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-		CaptureFacilitiesFinancials = CaptureFacilitiesFinancials(MainOptions, ScenarioData,
-																FuelPrices, TimeValueMoney, MonitorSwitchesData,
-																GlobalParameters, CapitalStructure, RevenueReserves,
-																CaptureFacilities, TaxCredits)
-		CO2Parameters = CO2Parameters(MainOptions, ScenarioData, CaptureFacilitiesFinancials, CaptureFacilities, GlobalParameters, RevenueReserves)
-
-
-		PipelineSystemsFinancials = PipelineSystemsFinancials(PipelineSystems, MainOptions, ScenarioData,
-																FuelPrices, TimeValueMoney, MonitorSwitchesData,
-																GlobalParameters, CapitalStructure, RevenueReserves,
-																CaptureFacilities, TaxCredits)
-		StorageSiteFinancials = StorageSiteFinancials(StorageSite, StorageWells, MainOptions, ScenarioData,
-														FuelPrices, TimeValueMoney, MonitorSwitchesData,
-														GlobalParameters, CapitalStructure, RevenueReserves,
-														CaptureFacilities, TaxCredits)
-# -------------------------------------------------------------------------------------------------------------------- #
-# -------------------------------------------------------------------------------------------------------------------- #
-
-		financial_dfs = {'AmineCaptureFacility': CaptureFacilitiesFinancials.AmineCaptureFacility(),
-						'CoGenFacility':CaptureFacilitiesFinancials.CoGenFacility(),
-						'SteamPlantOnly':CaptureFacilitiesFinancials.SteamPlantOnly(),
-						'CoolingTower':CaptureFacilitiesFinancials.CoolingTower(),
-						'WaterTreatmentDemineralization':CaptureFacilitiesFinancials.WaterTreatmentDemineralization(),
-						'CompressionDehydration':CaptureFacilitiesFinancials.CompressionDehydration(),
-						'FlueGasTieIn':CaptureFacilitiesFinancials.FlueGasTieIn(),
-						'StoragePipeline': PipelineSystemsFinancials.StoragePipeline(),
-						'EorSalesPipeline': PipelineSystemsFinancials.EorSalesPipeline(),
-						'CO2PipelineBoostersGaugesMeters': PipelineSystemsFinancials.CO2PipelineBoostersGaugesMeters(),
-						'PreInjectSite': StorageSiteFinancials.PreInjectSite(),
-						'StorageOperationMonitoring': StorageSiteFinancials.StorageOperationMonitoring(StorageSiteFinancials.PreInjectSite().iloc[0 ,0], CO2Parameters.SourcePlantOperations()),
-						'CO2 Post-Injection Close Monitoring': StorageSiteFinancials.PostClosure()}
-		CapitalCosts = CapitalCosts(financial_dfs, MainOptions, TimeValueMoney, MonitorSwitchesData, InsurancePiscLtl, CaptureFacilitiesFinancials)
-		ElecUsedByFacilities = ElecUsedByFacilities(MainOptions, financial_dfs, FuelPrices)
-
-		CO2_dfs = {'CO2 Source Plant Operating Results': CO2Parameters.SourcePlantOperations(),
-					'CO2 Sales & Storage Volumes': CO2Parameters.CO2SaleAndStorage(CO2Parameters.SourcePlantOperations()),
-					'CO2 Tax Credits': CO2Parameters.CO2TaxCredits(TaxCredits),
-					'CO2 Pricing Paths': FuelPrices.cal_CO2_price_and_green(RevenueReserves, MainOptions, TimeValueMoney),
-					'CO2 Permits or Emission Credits': CO2Parameters.CO2PermitsOrEmissionCredits(),
-					'Electricity Used by Capture Facilities': ElecUsedByFacilities.CalcElecUsage()}
-		ElecUsedByFacilities.FinishFacilitiesElec(CO2_dfs['Electricity Used by Capture Facilities'])
-
-		project_financial_df = {'Total Facilities CAPEX': CapitalCosts.TotalCAPEX_ITC()['Facilities CAPEX'],
-								'Total ITC': CapitalCosts.TotalCAPEX_ITC()['Facilities ITC'],
-								'Industrial Insurance': CapitalCosts.Insurance(CapitalCosts.TotalCAPEX_ITC()['Facilities CAPEX']),
-								'Trust Funds': CapitalCosts.TrustFunds(financial_dfs['CO2 Post-Injection Close Monitoring'], CO2_dfs['CO2 Source Plant Operating Results'], CaptureFacilities),
-								'Techno Economic Financial Summary': TechnoEconSummary(MainOptions, CO2_dfs['CO2 Source Plant Operating Results'], ScenarioData, CO2_dfs['Electricity Used by Capture Facilities'], CO2_dfs['CO2 Sales & Storage Volumes']).df,
-								}
-		project_financial_df['Revenues'] = CapitalCosts.calc_revenues(project_financial_df['Techno Economic Financial Summary'], CO2_dfs, FuelPrices)
-		project_financial_df['Total Project CAPEX'] = CapitalCosts.project_CAPEX(project_financial_df['Total Facilities CAPEX'], project_financial_df['Industrial Insurance'], GlobalParameters, RevenueReserves, CapitalStructure)
-		project_financial_df['Operating Costs'] = CapitalCosts.calc_OPCosts(financial_dfs, project_financial_df)
-		project_financial_df['Debt Schedule'] = CapitalCosts.debt_schdule(financial_dfs, project_financial_df, CapitalStructure)
-		project_financial_df['Taxes'] = CapitalCosts.calc_taxes(financial_dfs, project_financial_df, CapitalStructure)
-		project_financial_df['Debt Service & Operating Reserve Account'] = CapitalCosts.debt_service(financial_dfs, project_financial_df, RevenueReserves, CapitalStructure)[0]
-		project_financial_df['Debt Coverage'] = CapitalCosts.debt_service(financial_dfs, project_financial_df, RevenueReserves, CapitalStructure)[1]
-		project_financial_df['Operating Income'] = CapitalCosts.calc_OPIncome(project_financial_df, CapitalStructure)
-		project_financial_df['Equity Sizing'] = CapitalCosts.equity_sizing(project_financial_df, TimeValueMoney)
-		project_financial_df['Total Project CAPEX'] = CapitalCosts.finish_CAPEX(project_financial_df['Total Project CAPEX'], project_financial_df)
+		results = main_run_model(model_title, reset_message, MainOptions, ScenarioData, FuelData, FuelPrices, TimeValueMoney, MonitorSwitchesData, GlobalParameters, CapitalStructure, RevenueReserves,
+											InsurancePiscLtl, CaptureFacilities, PipelineSystems, StorageSite, StorageWells)
+		financial_dfs = results[0]
+		project_financial_df = results[1]
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 		st.success('Model Successful!')
@@ -148,6 +160,8 @@ if sum(in_options) == 0:
 		csf.main_body_divider()
 		csf.section_header('Model Results', line_above = False)
 		DisplayResults.display_dataframes(financial_dfs, project_financial_df)
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
 
 		st.subheader("Cost Summary:")
 		st.text('[In Millions of USD]')
