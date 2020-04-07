@@ -1,0 +1,8 @@
+Power Plant Unit,Nameplate,Cap.Factor,CO2 lbs/MW,Min. Flue,StoragePipe,Sales Pipe
+Dry Fork Station,483.7,0.77,2218,358.6595927,1,5
+Personal Scenario,483.7,0.77,2218,358.6595927,1,5
+Jim Bridger Unit 3 OR 4,608.3,0.67,2218,412.1908752,2.5,15
+Jim Bridger Units 3 & 4,1216.6,0.67,2218,412.1908752,2.5,15
+Dave Johnston Unit 3,255,0.624,2400,159.12,10,1
+Dave Johnston Unit 4,400,0.642,2400,256.8,10,1
+Dave Johnston Unit 3 & 4,655,0.634992366,2400,415.92,10,1
