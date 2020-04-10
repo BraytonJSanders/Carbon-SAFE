@@ -37,7 +37,7 @@ import DisplayResults
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-# @st.cache
+@st.cache
 def main_run_model(model_title, reset_message, MainOptions, ScenarioData, FuelData, FuelPrices, TimeValueMoney, MonitorSwitchesData, GlobalParameters, CapitalStructure, RevenueReserves,
 					InsurancePiscLtl, CaptureFacilities, PipelineSystems, StorageSite, StorageWells):
 
