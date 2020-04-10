@@ -37,7 +37,7 @@ import DisplayResults
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-@st.cache
+# @st.cache
 def main_run_model(model_title, reset_message, MainOptions, ScenarioData, FuelData, FuelPrices, TimeValueMoney, MonitorSwitchesData, GlobalParameters, CapitalStructure, RevenueReserves,
 					InsurancePiscLtl, CaptureFacilities, PipelineSystems, StorageSite, StorageWells):
 
@@ -153,6 +153,8 @@ if sum(in_options) == 0:
 											InsurancePiscLtl, CaptureFacilities, PipelineSystems, StorageSite, StorageWells)
 		financial_dfs = results[0]
 		project_financial_df = results[1]
+
+		# financial_dfs['CO2 Post-Injection Close Monitoring']
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 		st.success('Model Successful!')

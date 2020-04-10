@@ -22,7 +22,7 @@ class ElecUsedByFacility:
 		self.facilities = facilities_dictionary
 		self.FuelPrices = FuelPrices
 
-	@st.cache(suppress_st_warning=True)
+	# @st.cache(suppress_st_warning=True)
 	def CalcElecUsage(self):
 		df = csf.create_zeros_array(self.MainOptions.total_life, rows = 9)
 
@@ -43,7 +43,7 @@ class ElecUsedByFacility:
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-	@st.cache(suppress_st_warning=True)
+	# @st.cache(suppress_st_warning=True)
 	def FinishFacilitiesElec(self, ElecUsage):
 		FinishFacilities(self, ElecUsage, 'AmineCaptureFacility')
 		FinishFacilities(self, ElecUsage, 'CoolingTower')

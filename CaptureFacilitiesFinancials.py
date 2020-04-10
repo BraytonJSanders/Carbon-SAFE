@@ -8,16 +8,6 @@ from SideBar import ModelConstants, SelectBoxOptions
 # -------------------------------------------------------------------------------------------------------------------- #
 
 @st.cache(suppress_st_warning=True)
-def get_ops_switchs(total_life, in_ops):
-	return np.array([(1 if i < in_ops else 0) for i in range(total_life)])
-# -------------------------------------------------------------------------------------------------------------------- #
-
-@st.cache(suppress_st_warning=True)
-def get_closed_switchs(total_life, in_ops):
-	return np.array([(1 if i >= in_ops else 0) for i in range(total_life)])
-# -------------------------------------------------------------------------------------------------------------------- #
-
-@st.cache(suppress_st_warning=True)
 def get_elec_rate(type_elec, fuel_data):
 	return fuel_data.loc['Industrial Electricity'] if type_elec == SelectBoxOptions.Elec_Power_Rates[0] else fuel_data.loc['Commercial Electricity']
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -38,8 +28,8 @@ class CaptureFacilitiesFinancial:
 		self.CaptureFacilities = CaptureFacilities
 		self.TaxCredits = TaxCredits
 
-		self.in_ops = get_ops_switchs(self.MainOptions.total_life, self.MainOptions.in_operation)
-		self.is_closed = get_closed_switchs(self.MainOptions.total_life, self.MainOptions.in_operation)
+		self.in_ops = csf.get_ops_switchs(self.MainOptions.total_life, self.MainOptions.in_operation)
+		self.is_closed = csf.get_closed_switchs(self.MainOptions.total_life, self.MainOptions.in_operation)
 		self.non_fuel_esc = self.TimeValueMoney.escalation_non
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -57,16 +47,14 @@ class CaptureFacilitiesFinancial:
 		chem_consumed = self.CaptureFacilities.amine_consumables * self.CaptureFacilities.CO2_per_year * ModelConstants.to_MM
 		water_consumed = self.CaptureFacilities.water_price * self.CaptureFacilities.amine_water_use * self.CaptureFacilities.flue_stream * self.ScenarioData.op_hrs_per_yr * ModelConstants.to_kilo
 
-		for i in range(1, self.length):
-			df[2,i] = (fan_pump_other_electricity) * self.in_ops[i]
-			# df[3,i] = df[2,i] * False
-			df[4,i] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i] # NON FUEL O&M
-			df[5,i] = (chem_consumed) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
-			df[6,i] = (water_consumed) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
-			# df[7,i] = (df[3,i] * self.FuelPrices.elec_purchase[i]) * self.in_ops[i]
-			df[8,i] = df[4:8, i].sum()
-			df[9,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
-			df[10,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+		df[2,:] = self.in_ops * fan_pump_other_electricity
+		df[4,:] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation * self.in_ops
+		df[5,:] = (chem_consumed) * self.TimeValueMoney.escalation * self.in_ops
+		df[6,:] = (water_consumed) * self.TimeValueMoney.escalation * self.in_ops
+		df[8,:] = df[4:8, :].sum(axis = 0) * self.in_ops
+		df[9,1:] = tax_basis_and_straight_line[0] * MACRS[:-1]
+		df[10,:] = tax_basis_and_straight_line[1] * self.in_ops
+		
 		df[0,0] = CAPEX
 		df[1,0] = ITC
 		df[11,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[10,:], self.GlobalParameters.min_book_value, self.in_ops) 
@@ -93,14 +81,14 @@ class CaptureFacilitiesFinancial:
 			elec_output = self.CaptureFacilities.aux_nameplate * self.ScenarioData.efficiency * ModelConstants.hours_per_year * ModelConstants.out_kilo
 			ng_consumed = self.CaptureFacilities.CoGen_heat * ModelConstants.out_MM * ModelConstants.mmbtu_to_mcd
 
-			for i in range(1, self.length):
-				df[2,i] = elec_output * self.in_ops[i]
-				df[3,i] = ng_consumed * df[2,i]
-				df[4,i] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
-				df[5,i] = (df[3,i] * self.FuelPrices.ng_purchase[i]) * self.in_ops[i]
-				df[6,i] = df[4:6,i].sum()
-				df[7,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
-				df[8,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+			df[2,:] = elec_output * self.in_ops
+			df[3,:] = ng_consumed * df[2,:]
+			df[4,:] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation * self.in_ops
+			df[5,:] = (df[3,:] * self.FuelPrices.ng_purchase) * self.in_ops
+			df[6,:] = df[4:6, :].sum(axis = 0) * self.in_ops
+			df[7,1:] = tax_basis_and_straight_line[0] * MACRS[:-1]
+			df[8,:] = tax_basis_and_straight_line[1] * self.in_ops
+
 			df[0,0] = CAPEX
 			df[1,0] = ITC
 			df[9,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[8,:], self.GlobalParameters.min_book_value, self.in_ops) 
@@ -132,19 +120,25 @@ class CaptureFacilitiesFinancial:
 				fuel = self.FuelPrices.fuel_pricing_df.loc['Powder River Coal']
 				fuel_consumed_conversion = self.CaptureFacilities.aux_boiler_fuel / self.CaptureFacilities.aux_boiler_coal / self.MainOptions.tons_units
 			fuel_consumed = fuel_consumed_conversion * elec_output
-
-# 
-
 			fuel_consumed_conversion = self.CaptureFacilities.aux_boiler_fuel * ModelConstants.mmbtu_to_mcd * ModelConstants.to_MM
 
-			for i in range(1, self.length):
-				df[2,i] = elec_output * self.in_ops[i]
-				df[3,i] = fuel_consumed * self.in_ops[i]
-				df[4,i] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
-				df[5,i] = df[3,i] * fuel[i]
-				df[6,i] = df[4:6,i].sum()
-				df[7,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
-				df[8,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+			df[2,:] = elec_output * self.in_ops
+			df[3,:] = fuel_consumed * self.in_ops
+			df[4,:] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation * self.in_ops
+			df[5,:] = df[3,:] * fuel
+			df[6,:] = df[4:6,:].sum(axis = 0) * self.in_ops
+			df[7,:1] = tax_basis_and_straight_line[0] * MACRS[:-1]
+			df[8,:] = tax_basis_and_straight_line[1] * self.in_ops
+
+			# for i in range(1, self.length):
+			# 	df[2,i] = elec_output * self.in_ops[i]
+			# 	df[3,i] = fuel_consumed * self.in_ops[i]
+			# 	df[4,i] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
+			# 	df[5,i] = df[3,i] * fuel[i]
+			# 	df[6,i] = df[4:6,i].sum()
+			# 	df[7,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
+			# 	df[8,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+
 			df[0,0] = CAPEX
 			df[1,0] = ITC
 			df[9,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[8,:], self.GlobalParameters.min_book_value, self.in_ops)
@@ -170,15 +164,23 @@ class CaptureFacilitiesFinancial:
 			elec_consumed = (4.6 * ModelConstants.out_kilo * self.ScenarioData.op_hrs_per_yr) * True
 			water_cost = self.CaptureFacilities.water_price * self.CaptureFacilities.makeup_water * ModelConstants.minutes_per_year * self.ScenarioData.efficiency * ModelConstants.to_kilo
 
-			for i in range(1, self.length):
-				df[2,i] = elec_consumed * self.in_ops[i]
+			df[2,:] = elec_consumed * self.in_ops
+			df[4,:] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation * self.in_ops
+			df[5,:] = water_cost * self.TimeValueMoney.escalation * self.in_ops
+			df[7,:] = df[4:7,:].sum(axis = 0) * self.in_ops
+			df[8,1:] = tax_basis_and_straight_line[0] * MACRS[:-1]
+			df[9,:] = tax_basis_and_straight_line[1] * self.in_ops
+
+			# for i in range(1, self.length):
+				# df[2,i] = elec_consumed * self.in_ops[i]
 				# df[3,i] = df[2,i] * False
-				df[4,i] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
-				df[5,i] = water_cost * self.TimeValueMoney.escalation[i] * self.in_ops[i]
+				# df[4,i] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
+				# df[5,i] = water_cost * self.TimeValueMoney.escalation[i] * self.in_ops[i]
 				# df[6,i] = (df[3,i] * self.FuelPrices.elec_purchase[i]) * self.in_ops[i]
-				df[7,i] = df[4:7,i].sum()
-				df[8,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
-				df[9,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+				# df[7,i] = df[4:7,i].sum()
+				# df[8,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
+				# df[9,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+
 			df[0,0] = CAPEX
 			df[1,0] = ITC
 			df[10,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[9,:], self.GlobalParameters.min_book_value, self.in_ops)
@@ -206,17 +208,28 @@ class CaptureFacilitiesFinancial:
 
 			chemical = self.CaptureFacilities.water_per_day * self.CaptureFacilities.water_demin_chem_cost * ModelConstants.days_per_year
 
-			for i in range(1, self.length):
-				df[2,i] = treat_elec_consumed * self.in_ops[i]
-				df[3,i] = demin_elec_consumed * self.in_ops[i]		
-				df[4,i] = df[2:4,i].sum()
-				df[5,i] = df[4,i] * False
-				df[6,i] = (CAPEX * self.CaptureFacilities.water_demin_OM_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
-				df[7,i] = chemical * self.TimeValueMoney.escalation[i] * self.in_ops[i]
-				df[8,i] = (df[5,i] * self.FuelPrices.elec_purchase[i]) * self.in_ops[i]
-				df[9,i] = df[6:9,i].sum()
-				df[10,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
-				df[11,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+			df[2,:] = treat_elec_consumed * self.in_ops
+			df[3,:] = demin_elec_consumed * self.in_ops		
+			df[4,:] = df[2:4,:].sum(axis = 0) * self.in_ops
+			df[6,:] = (CAPEX * self.CaptureFacilities.water_demin_OM_rate) * self.TimeValueMoney.escalation * self.in_ops
+			df[7,:] = chemical * self.TimeValueMoney.escalation * self.in_ops
+			df[8,:] = (df[5,:] * self.FuelPrices.elec_purchase) * self.in_ops
+			df[9,:] = df[6:9,:].sum(axis = 0) * self.in_ops
+			df[10,1:] = tax_basis_and_straight_line[0] * MACRS[:-1]
+			df[11,:] = tax_basis_and_straight_line[1] * self.in_ops
+
+			# for i in range(1, self.length):
+			# 	df[2,i] = treat_elec_consumed * self.in_ops[i]
+			# 	df[3,i] = demin_elec_consumed * self.in_ops[i]		
+			# 	df[4,i] = df[2:4,i].sum()
+			# 	df[5,i] = df[4,i] * False
+			# 	df[6,i] = (CAPEX * self.CaptureFacilities.water_demin_OM_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
+			# 	df[7,i] = chemical * self.TimeValueMoney.escalation[i] * self.in_ops[i]
+			# 	df[8,i] = (df[5,i] * self.FuelPrices.elec_purchase[i]) * self.in_ops[i]
+			# 	df[9,i] = df[6:9,i].sum()
+			# 	df[10,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
+			# 	df[11,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+
 			df[0,0] = CAPEX
 			df[1,0] = ITC
 			df[12,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[11,:], self.GlobalParameters.min_book_value, self.in_ops)
@@ -240,11 +253,17 @@ class CaptureFacilitiesFinancial:
 			MACRS = csf.calc_macrs(self.MainOptions.flue_macrs, self.length)
 			tax_basis_and_straight_line = csf.get_tax_basis_and_straight_line(CAPEX, ITC, self.TaxCredits.income_dep, self.MainOptions.in_operation-1)
 
-			for i in range(1, self.length):
-				df[2,i] = (CAPEX * self.CaptureFacilities.flue_gas_OM_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
-				df[3,i] = df[2:3,i].sum()
-				df[4,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
-				df[5,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+			df[2,:] = (CAPEX * self.CaptureFacilities.flue_gas_OM_rate) * self.TimeValueMoney.escalation * self.in_ops
+			df[3,:] = df[2:3,:].sum(axis = 0) * self.in_ops
+			df[4,1:] = tax_basis_and_straight_line[0] * MACRS[:-1]
+			df[5,:] = tax_basis_and_straight_line[1] * self.in_ops
+
+			# for i in range(1, self.length):
+			# 	df[2,i] = (CAPEX * self.CaptureFacilities.flue_gas_OM_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
+			# 	df[3,i] = df[2:3,i].sum()
+			# 	df[4,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
+			# 	df[5,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+
 			df[0,0] = CAPEX
 			df[1,0] = ITC
 			df[6,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[5,:], self.GlobalParameters.min_book_value, self.in_ops)
@@ -282,18 +301,25 @@ class CaptureFacilitiesFinancial:
 
 			elec_consumed = horse_power * self.ScenarioData.op_hrs_per_yr * self.ScenarioData.efficiency
 
-
 			MACRS = csf.calc_macrs(self.MainOptions.comp_dehy_macrs, self.length)
 			tax_basis_and_straight_line = csf.get_tax_basis_and_straight_line(CAPEX, ITC, self.TaxCredits.income_dep, self.MainOptions.in_operation-1)
 
-			for i in range(1, self.length):
-				df[2,i] = elec_consumed * self.in_ops[i]
-				df[3,i] = df[2,i] * False
-				df[4,i] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
-				df[5,i] = (df[3,i] * self.FuelPrices.elec_purchase[i]) * self.in_ops[i]
-				df[6,i] = df[4:6,i].sum()
-				df[7,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
-				df[8,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+			df[2,:] = elec_consumed * self.in_ops
+			df[4,:] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation * self.in_ops
+			df[5,:] = (df[3,:] * self.FuelPrices.elec_purchase) * self.in_ops
+			df[6,:] = df[4:6,:].sum(axis = 0) * self.in_ops
+			df[7,1:] = tax_basis_and_straight_line[0] * MACRS[:-1]
+			df[8,:] = tax_basis_and_straight_line[1] * self.in_ops
+
+			# for i in range(1, self.length):
+			# 	df[2,i] = elec_consumed * self.in_ops[i]
+			# 	df[3,i] = df[2,i] * False
+			# 	df[4,i] = (CAPEX * self.TimeValueMoney.escalation_non_rate) * self.TimeValueMoney.escalation[i] * self.in_ops[i]
+			# 	df[5,i] = (df[3,i] * self.FuelPrices.elec_purchase[i]) * self.in_ops[i]
+			# 	df[6,i] = df[4:6,i].sum()
+			# 	df[7,i] = tax_basis_and_straight_line[0] * MACRS[i-1]
+			# 	df[8,i] = tax_basis_and_straight_line[1] * self.in_ops[i]
+
 			df[0,0] = CAPEX
 			df[1,0] = ITC
 			df[9,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[8,:], self.GlobalParameters.min_book_value, self.in_ops)

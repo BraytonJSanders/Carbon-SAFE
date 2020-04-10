@@ -98,6 +98,10 @@ class PipelineSystemsFinancial(CaptureFacilitiesFinancial):
 		self.PipelineSystems = PipelineSystems
 		self.pipeline_cost_data = pipeline_cost_estimate(self.PipelineSystems, self.FuelPrices.fuel_pricing_df, self.ScenarioData)
 
+
+		# self.in_ops = csf.get_ops_switchs(self.MainOptions.total_life, self.MainOptions.in_operation)
+		# self.is_closed = csf.get_closed_switchs(self.MainOptions.total_life, self.MainOptions.in_operation)
+
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 	
@@ -116,10 +120,17 @@ class PipelineSystemsFinancial(CaptureFacilitiesFinancial):
 		
 		df[0,0] = CAPEX
 		df[1,0] = ITC
-		df[2,1:] = [(non_fuel_OM * self.TimeValueMoney.escalation[i] * self.in_ops[i]) for i in range(1, self.length)]
-		df[3,1:] = df[2,1:]
-		df[4,1:] = [tax_basis_and_straight_line[0] * MACRS[i-1] for i in range(1, self.length)]
-		df[5,1:] = [tax_basis_and_straight_line[1] * self.in_ops[i] for i in range(1, self.length)]
+
+		# df[2,:] = self.in_ops * fan_pump_other_electricity
+		df[2:4,:] = non_fuel_OM * self.TimeValueMoney.escalation * self.in_ops
+		df[4,1:] = tax_basis_and_straight_line[0] * MACRS[:-1]
+		df[5,:] = tax_basis_and_straight_line[1] * self.in_ops
+
+		# df[2,1:] = [(non_fuel_OM * self.TimeValueMoney.escalation[i] * self.in_ops[i]) for i in range(1, self.length)]
+		# df[3,1:] = df[2,1:]
+		# df[4,1:] = [tax_basis_and_straight_line[0] * MACRS[i-1] for i in range(1, self.length)]
+		# df[5,1:] = [tax_basis_and_straight_line[1] * self.in_ops[i] for i in range(1, self.length)]
+
 		df[6,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[5,:], self.GlobalParameters.min_book_value, self.in_ops) 
 
 		df = pd.DataFrame(df, index = ['CAPEX', 'ITC',
@@ -143,10 +154,15 @@ class PipelineSystemsFinancial(CaptureFacilitiesFinancial):
 
 		df[0,0] = CAPEX
 		df[1,0] = ITC
-		df[2,1:] = [(non_fuel_OM * self.TimeValueMoney.escalation[i] * self.in_ops[i]) for i in range(1, self.length)]
-		df[3,1:] = df[2,1:]
-		df[4,1:] = [tax_basis_and_straight_line[0] * MACRS[i-1] for i in range(1, self.length)]
-		df[5,1:] = [tax_basis_and_straight_line[1] * self.in_ops[i] for i in range(1, self.length)]
+		df[2:4,:] = non_fuel_OM * self.TimeValueMoney.escalation * self.in_ops
+		df[4,1:] = tax_basis_and_straight_line[0] * MACRS[:-1]
+		df[5,:] = tax_basis_and_straight_line[1] * self.in_ops
+
+		# df[2,1:] = [(non_fuel_OM * self.TimeValueMoney.escalation[i] * self.in_ops[i]) for i in range(1, self.length)]
+		# df[3,1:] = df[2,1:]
+		# df[4,1:] = [tax_basis_and_straight_line[0] * MACRS[i-1] for i in range(1, self.length)]
+		# df[5,1:] = [tax_basis_and_straight_line[1] * self.in_ops[i] for i in range(1, self.length)]
+
 		df[6,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[5,:], self.GlobalParameters.min_book_value, self.in_ops) 
 
 		df = pd.DataFrame(df, index = ['CAPEX', 'ITC',
@@ -171,13 +187,21 @@ class PipelineSystemsFinancial(CaptureFacilitiesFinancial):
 
 		df[0,0] = CAPEX
 		df[1,0] = ITC
-		df[2,1:] = [elec_consumed * self.in_ops[i] for i in range(1, self.length)]
-		df[3,1:] = [df[2,i] * False for i in range(1, self.length)]
-		df[4,1:] = [df[3,i] * self.FuelPrices.elec_purchase[i] * self.in_ops[i] for i in range(1, self.length)]
-		df[5,1:] = [CAPEX * self.PipelineSystems.meters_gauges_OM_rate * self.TimeValueMoney.escalation[i] * self.in_ops[i] for i in range(1, self.length)]
-		df[6,1:] = [df[4:6,i].sum() for i in range(1, self.length)]
-		df[7,1:] = [tax_basis_and_straight_line[0] * MACRS[i-1] for i in range(1, self.length)]
-		df[8,1:] = [tax_basis_and_straight_line[1] * self.in_ops[i] for i in range(1, self.length)]
+
+		df[2,:] = elec_consumed * self.in_ops
+		df[5,:] = CAPEX * self.PipelineSystems.meters_gauges_OM_rate * self.TimeValueMoney.escalation * self.in_ops
+		df[6,:] = df[4:6,:].sum(axis = 0) * self.in_ops
+		df[7,1:] = tax_basis_and_straight_line[0] * MACRS[:-1]
+		df[8,:] = tax_basis_and_straight_line[1] * self.in_ops
+
+		# df[2,1:] = [elec_consumed * self.in_ops[i] for i in range(1, self.length)]
+		# df[3,1:] = [df[2,i] * False for i in range(1, self.length)]
+		# df[4,1:] = [df[3,i] * self.FuelPrices.elec_purchase[i] * self.in_ops[i] for i in range(1, self.length)]
+		# df[5,1:] = [CAPEX * self.PipelineSystems.meters_gauges_OM_rate * self.TimeValueMoney.escalation[i] * self.in_ops[i] for i in range(1, self.length)]
+		# df[6,1:] = [df[4:6,i].sum() for i in range(1, self.length)]
+		# df[7,1:] = [tax_basis_and_straight_line[0] * MACRS[i-1] for i in range(1, self.length)]
+		# df[8,1:] = [tax_basis_and_straight_line[1] * self.in_ops[i] for i in range(1, self.length)]
+
 		df[9,:] = csf.book_value_per_year(tax_basis_and_straight_line[0], df[8,:], self.GlobalParameters.min_book_value, self.in_ops) 
 
 		df = pd.DataFrame(df, index = ['CAPEX', 'ITC',

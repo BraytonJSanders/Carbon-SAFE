@@ -45,7 +45,7 @@ def calc_macrs(schedule, length):
 # -------------------------------------------------------------------------------------------------------------------- #
 
 def create_zeros_array(length, rows = 1):
-	return np.zeros((rows, length))
+	return np.zeros((rows, length), dtype=float)
 # -------------------------------------------------------------------------------------------------------------------- #
 
 def calc_federal_ITC(CAPEX, ITC_share, ITC_rate):
@@ -75,7 +75,7 @@ def book_value_per_year(tax_basis, straight_line_yearly, min_book_value, in_ops_
 # -------------------------------------------------------------------------------------------------------------------- #
 
 def get_factors(rate, life_span):
-	return [((1 + rate) ** x) for x in range(life_span)]
+	return np.array([((1 + rate) ** x) for x in range(life_span)], dtype = float)
 # -------------------------------------------------------------------------------------------------------------------- #
 
 def main_body_divider():
@@ -91,7 +91,16 @@ def section_header(title, line_above = True):
 	st.header(title); st.subheader('')
 # -------------------------------------------------------------------------------------------------------------------- #
 
+@st.cache
+def get_ops_switchs(total_life, in_ops):
+	x = np.array([(1 if i < in_ops else 0) for i in range(total_life)], dtype = float)
+	x[0] = 0
+	return x
+# ------------------------------------------------------------------------------------------------------------------- #
 
+@st.cache
+def get_closed_switchs(total_life, in_ops):
+	return np.array([(1 if i >= in_ops else 0) for i in range(total_life)])
 
 
 
